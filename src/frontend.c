@@ -163,3 +163,58 @@ TokenArray* tokenize(const char* proc_src)
 
     return tokens;
 }
+
+IRProgram* parse(TokenArray* tokens)
+{
+    IRProgram* program = create_ir_program();
+    if (!program) 
+    {
+        fprintf(stderr, "Failed to create IR program\n");
+        return NULL;
+    }
+    
+    for (size_t i = 0; i < tokens->count; i++) 
+    {
+        Token* token = &tokens->tokens[i];
+        
+        switch (token->type)
+        {
+            case TOK_PTR_INC:
+                add_ir_op(program, IR_PTR_ADD, 1, 0, -1);
+                break;
+                
+            case TOK_PTR_DEC:
+                add_ir_op(program, IR_PTR_SUB, 1, 0, -1);
+                break;
+                
+            case TOK_VAL_INC:
+                add_ir_op(program, IR_VAL_ADD, 1, 0, -1);
+                break;
+                
+            case TOK_VAL_DEC:
+                add_ir_op(program, IR_VAL_SUB, 1, 0, -1);
+                break;
+                
+            case TOK_OUTPUT:
+                add_ir_op(program, IR_OUTPUT, 0, 0, -1);
+                break;
+                
+            case TOK_INPUT:
+                add_ir_op(program, IR_INPUT, 0, 0, -1);
+                break;
+                
+            case TOK_LOOP_START:
+                add_ir_op(program, IR_LOOP_START, 0, 0, token->loop_id);
+                break;
+                
+            case TOK_LOOP_END:
+                add_ir_op(program, IR_LOOP_END, 0, 0, token->loop_id);
+                break;
+                
+            case TOK_EOF: /* end of file*/
+                break;
+        }
+    }
+    
+    return program;
+}
