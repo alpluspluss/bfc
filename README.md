@@ -9,7 +9,10 @@ The codebase is written with simplicity in mind with a fair share of comments in
 
 ## Status
 
-bfc is able to compile all Brainfuck instructions into native binary with naive optimizations enabled.
+bfc is able to compile and optimize all Brainfuck instructions into native binary with naive optimizations enabled. Currently, there are certain programs that are not able to compile correctly:
+
+- [ ] Game of Life - `OUTPUT` IR got optimized out
+- This list continues if there are more programs identified as improper compilation
 
 ### Essentials
 

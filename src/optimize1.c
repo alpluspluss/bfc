@@ -118,6 +118,7 @@ void optimize_clear_loops(IRProgram* program)
             /* replace with SET_ZERO so we can generate more specialized instructions */
             IROperation* loop_end = current->next->next;
             IROperation* after_loop = loop_end->next;
+            IROperation* to_free = current->next; // Save pointer to free later
             
             current->type = IR_SET_ZERO;
             current->value = 0;
@@ -127,7 +128,7 @@ void optimize_clear_loops(IRProgram* program)
                 program->last = current;
             
             /* cleanup */
-            free(current->next);
+            free(to_free);
             free(loop_end);
             program->count -= 2;
         
@@ -414,15 +415,22 @@ IRProgram* optimize1(IRProgram* program)
     if (!program)
         return NULL;
 
+    printf("Before optimization: %zu\n", program->count);
+    ir_dump(program);
     /* basic optimization */
     optimize_combinable(program);
     optimize_clear_loops(program);
 
+    printf("After basic optimization: %zu\n", program->count);
+    ir_dump(program);
     /* advance; maybe moved to -O3 or optimize2() */
     optimize_move_loops(program);
     optimize_add_mul_loops(program);
     optimize_scan_loops(program);
     
     optimize_combinable(program); /* final pass */
+
+    printf("Final after advanced optimization: %zu\n", program->count);
+    ir_dump(program);
     return program;
 }
