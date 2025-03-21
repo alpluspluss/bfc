@@ -113,7 +113,7 @@ CodeBuffer* codegen(IRProgram* program)
         return NULL;
     }
     
-    CodeBuffer* buf = create_code_buffer(1024);
+    CodeBuffer* buf = create_code_buffer(5000);
     if (!buf) 
     {
         fprintf(stderr, "Failed to create code buffer\n");

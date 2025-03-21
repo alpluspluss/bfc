@@ -101,3 +101,5 @@ void free_ir_program(IRProgram* program);
 IROperation* create_ir_op(IROptype type, int value, int offset, int loop_id);
 
 void add_ir_op(IRProgram* program, IROptype type, int value, int offset, int loop_id);
+
+void ir_dump(IRProgram* program);
