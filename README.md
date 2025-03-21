@@ -1,5 +1,8 @@
 # bfc: A Brainfuck Compiler from Scratch
 
+> [!NOTE]
+> The system call number is currently for OSX/XNU Darwin. More OS may or may not be supported at later date.
+
 bfc is a fully-made-from-scratch with its custom ARM64 code generation backend. bfc is developed as a testament to my learning of ARM64 instructions encoding and decoding.
 
 The codebase is written with simplicity in mind with a fair share of comments in most files. Readers should have some ideas about basic instruction encoding as well as how a typical compiler optimizes your code. 
@@ -36,3 +39,12 @@ To ensure the generated binary is compiled correctly, you may want to install `c
 ```shell
 pip install capstone
 ```
+
+### Commands
+
+Type:
+
+```shell
+make
+```
+to compile the source code.
