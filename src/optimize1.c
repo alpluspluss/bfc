@@ -145,9 +145,6 @@ IRProgram* optimize1(IRProgram* program)
     if (!program)
         return NULL;
 
-    printf("Before optimization: %zu\n", program->count);
-    ir_dump(program);
-
     /* basic optimization */
     optimize_combinable(program);
     optimize_clear_loops(program);
