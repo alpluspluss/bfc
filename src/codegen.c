@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +68,13 @@ int32_t compute_br_offset(CodeBuffer* buf, int src_offset, int dest_offset)
 
 void patch_br(CodeBuffer* buf, int offset, int32_t branch_offset) 
 {
+    if (offset < 0 || (size_t)offset >= buf->size) /* buffer overflow check */
+    {
+        fprintf(stderr, "Error: Attempt to patch branch at invalid offset %d (buffer size: %zu)\n", 
+                offset, buf->size);
+        return;
+    }
+
     if (buf->code[offset] & (1u << 31)) /* 64-bit conditional branch (CBZ/CBNZ) */
     {
         /* offset is encoded in bits 5-23 for CCBZ/CBNZ */
@@ -215,9 +223,16 @@ CodeBuffer* codegen(IRProgram* program)
                 emit_instr(buf, encode_cbnz(REG_TEMP, backwards_offset));
                 
                 /* patch the forward jump from loop start */
-                int32_t forwards_offset = compute_br_offset(
-                    buf, loop_end_patches[op->loop_id], buf->size);
-                patch_br(buf, loop_end_patches[op->loop_id], forwards_offset);
+                if (loop_end_patches[op->loop_id] >= 0)
+                {
+                    int32_t forwards_offset = compute_br_offset(
+                        buf, loop_end_patches[op->loop_id], buf->size);
+                    patch_br(buf, loop_end_patches[op->loop_id], forwards_offset);
+                } 
+                else 
+                {
+                    fprintf(stderr, "Warning: Unmatched loop end for loop ID %d\n", op->loop_id);
+                }
                 break;
             }
                 

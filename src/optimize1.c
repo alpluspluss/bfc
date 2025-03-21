@@ -182,6 +182,9 @@ void optimize_move_loops(IRProgram* program)
 
 void optimize_scan_loops(IRProgram* program) 
 {
+    if (!program || !program->first)
+        return;
+        
     IROperation* op = program->first;
     
     while (op && op->next && op->next->next) 
@@ -193,19 +196,24 @@ void optimize_scan_loops(IRProgram* program)
             op->next->next->loop_id == op->loop_id) 
         {
             /* replace with a SCAN_ZERO operation */
-            IROperation* loop_end = op->next->next;
-            IROperation* after_loop = loop_end->next;
+            IROperation* to_free1 = op->next;
+            IROperation* to_free2 = op->next->next;
+            IROperation* after_loop = to_free2->next;
             
+            /* Update type and value before modifying the linked list */
             op->type = IR_SCAN_ZERO;
-            op->value = (op->next->type == IR_PTR_ADD) ? op->next->value : -op->next->value;
+            op->value = (to_free1->type == IR_PTR_ADD) ? to_free1->value : -to_free1->value;
+            
+            /* Update the linked list */
             op->next = after_loop;
             
-            if (loop_end == program->last)
+            /* Update the last pointer if needed */
+            if (to_free2 == program->last)
                 program->last = op;
             
-            /* cleanup the replaced op */
-            free(op->next);
-            free(loop_end);
+            /* Free the memory */
+            free(to_free1);
+            free(to_free2);
             
             program->count -= 2;
             continue;
@@ -293,13 +301,19 @@ void optimize_add_mul_loops(IRProgram* program)
             if (analysis.is_direct_multiply) 
             {
                 /* find the loop end */
-                IROperation* loop_end = op;
+                IROperation* loop_end = op->next;
                 while (loop_end && loop_end->type != IR_LOOP_END)
                     loop_end = loop_end->next;
 
                 if (!loop_end) 
+                {
+                    op = op->next;
                     continue;
+                }
 
+                /* save next after the loop */
+                IROperation* after_loop = loop_end->next;
+                
                 /* create replacement operations */
                 IROperation* add_mul_op = create_ir_op(
                     IR_ADD_MUL, 
@@ -309,16 +323,30 @@ void optimize_add_mul_loops(IRProgram* program)
                 );
                 IROperation* set_zero_op = create_ir_op(IR_SET_ZERO, 0, 0, -1);
                 
-                /* update the linked list ! */
-                add_mul_op->next = loop_end->next;
-                set_zero_op->next = add_mul_op->next;
-                op->next = add_mul_op;
-                add_mul_op->next = set_zero_op;
+                /* save all nodes to be freed */
+                IROperation* first_to_free = op->next;
                 
+                /* connect the new nodes */
+                set_zero_op->next = after_loop;
+                add_mul_op->next = set_zero_op;
+                op->next = add_mul_op;
+                
+                /* free everything between loop start and end */
+                IROperation* current = first_to_free;
+                while (current != after_loop) {
+                    IROperation* to_free = current;
+                    current = current->next;
+                    free(to_free);
+                }
+                
+                /* update the last pointer if needed */
                 if (loop_end == program->last)
                     program->last = set_zero_op;
                 
+                /* adjust count and skip over the newly added operations */
                 program->count += 2;
+                op = set_zero_op;
+                continue;
             }
         }
         
@@ -338,9 +366,11 @@ IRProgram* optimize1(IRProgram* program)
     /* advanced */
     optimize_move_loops(program);
 
-    optimize_add_mul_loops(program);
+    // optimize_add_mul_loops(program);
     optimize_scan_loops(program);
     
     optimize_combinable(program); /* final pass */
+
+    ir_dump(program);
     return program;
 }
