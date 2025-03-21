@@ -11,12 +11,12 @@ bfc is able to compile all Brainfuck instructions into native binary with naive 
 ### Essentials
 
 - [X] Tokenizing
-- [ ] Parsing
-- [ ] IR generation
-- [ ] Naive optimization
-- [ ] Peephole optimization
+- [X] Parsing
+- [X] IR generation
+- [X] Naive optimization (#1 pass)
+- [ ] Peephole optimization (#2 pass)
 - [ ] Native ARM64 instruction encoding
-- [ ] ELF object file
+- [ ] MachO object file
 
 bfc will not be implementing other related toolchains such as linker, assembler, or anything that is beyond the scope of a "compiler" does.
 

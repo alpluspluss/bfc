@@ -78,6 +78,9 @@ void free_tkarr(TokenArray* arr);
 
 IRProgram* parse(TokenArray* tokens);
 
+/* optimize1.c; this function performs IR level optimizations */
+IRProgram* optimize1(IRProgram* program);
+
 /* ir.c; this is IR utils */
 IRProgram* create_ir_program();
 
