@@ -69,6 +69,13 @@ typedef struct
     size_t count;
 } IRProgram;
 
+typedef struct
+{
+    uint32_t* code;
+    size_t capacity;
+    size_t size;
+} CodeBuffer;
+
 /* in frontend.c */
 char* preproc(const char* src);
 
@@ -80,6 +87,11 @@ IRProgram* parse(TokenArray* tokens);
 
 /* optimize1.c; this function performs IR level optimizations */
 IRProgram* optimize1(IRProgram* program);
+
+/* codegen.c */
+CodeBuffer* codegen(IRProgram* program);
+
+void free_code_buffer(CodeBuffer* buf);
 
 /* ir.c; this is IR utils */
 IRProgram* create_ir_program();
