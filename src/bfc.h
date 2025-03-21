@@ -88,6 +88,14 @@ IRProgram* parse(TokenArray* tokens);
 /* optimize1.c; this function performs IR level optimizations */
 IRProgram* optimize1(IRProgram* program);
 
+void optimize_combinable(IRProgram* program); /* utils; used in every optimization */
+
+/* optimize2.c; this function performs IR level */
+IRProgram* optimize2(IRProgram* program);
+
+/* optimize3.c; because this can break your program */
+IRProgram* optimize3(IRProgram* program);
+
 /* codegen.c */
 CodeBuffer* codegen(IRProgram* program);
 

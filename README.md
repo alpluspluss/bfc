@@ -20,9 +20,9 @@ bfc is able to compile and optimize all Brainfuck instructions into native binar
 - [X] Parsing
 - [X] IR generation
 - [X] Naive optimization (#1 pass)
-- [ ] Peephole optimization (#2 pass)
+- [X] Peephole optimization (#2 pass)
 - [X] Native ARM64 instruction encoding
-- [ ] Runtime
+- [ ] JIT runtime
 
 bfc will not be implementing other related toolchains such as linker, assembler, or anything that is beyond the scope of a "compiler" does.
 

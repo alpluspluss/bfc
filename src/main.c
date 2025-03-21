@@ -57,7 +57,9 @@ void print_usage(const char *program_name)
             "  -v, --verbose     Print verbose output during compilation\n");
     fprintf(stderr, "  -O0               Disable optimizations\n");
     fprintf(stderr, "  -O1               Enable basic optimizations (default)\n");
-    fprintf(stderr, "  -O2               Enable advanced optimizations\n");
+    fprintf(stderr, "  -O2               Enable intermediate optimizations\n");
+    fprintf(stderr, "  -O3               Enable aggressive optimizations\n");
+    fprintf(stderr, "  -j, --jit         Enable JIT runtime execution\n");
     fprintf(stderr, "  -h, --help        Display this help message\n");
 }
 
@@ -66,6 +68,7 @@ int main(int argc, char *argv[])
 {
     int verbose = 0;
     int opt_level = 1;
+    int use_jit = 0;
 
     int arg_idx = 1;
     while (arg_idx < argc && argv[arg_idx][0] == '-') 
@@ -86,7 +89,16 @@ int main(int argc, char *argv[])
         else if (strcmp(argv[arg_idx], "-O2") == 0)
         {
             opt_level = 2;
-        } 
+        }
+        else if (strcmp(argv[arg_idx], "-O3") == 0)
+        {
+            opt_level = 3;
+        }
+        else if (strcmp(argv[arg_idx], "-j") == 0 ||
+                 strcmp(argv[arg_idx], "--jit") == 0)
+        {
+            use_jit = 1;
+        }
         else if (strcmp(argv[arg_idx], "-h") == 0 ||
                 strcmp(argv[arg_idx], "--help") == 0)
         {
@@ -150,12 +162,42 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (opt_level > 0) 
+    if (verbose) 
+    {
+        printf("Before optimization: %zu\n", ir_program->count);
+        ir_dump(ir_program);
+    }
+    
+    if (opt_level >= 1) 
     {
         ir_program = optimize1(ir_program);
+        if (verbose) 
+        {
+            printf("After basic optimization: %zu\n", ir_program->count);
+            ir_dump(ir_program);
+        }
+    }
+    
+    if (opt_level >= 2) 
+    {
+        ir_program = optimize2(ir_program);
+        if (verbose) 
+        {
+            printf("After intermediate optimization: %zu\n", ir_program->count);
+            ir_dump(ir_program);
+        }
+    }
+    
+    if (opt_level >= 3) 
+    {
+        ir_program = optimize3(ir_program);
+        if (verbose) 
+        {
+            printf("Final after advanced optimization: %zu\n", ir_program->count);
+            ir_dump(ir_program);
+        }
     }
 
-    /* compilation */
     CodeBuffer *compiled = codegen(ir_program);
     if (!compiled) 
     {
@@ -166,19 +208,29 @@ int main(int argc, char *argv[])
         free_ir_program(ir_program);
         return 1;
     }
+    
+    if (use_jit) 
+    {
+        if (verbose)
+            printf("Using JIT runtime execution\n");
+        
+        /* jit_execute_compiled(compiled); */
+        printf("JIT runtime execution not yet implemented\n");
+    } 
+    else /* standard AOT output */
+    {
+        write_binary_file(output_file, compiled);
 
-    write_binary_file(output_file, compiled);
-
-    printf("Compiled successfully. Output written to %s\n", output_file);
-    printf("Code size: %zu instructions (%zu bytes)\n", compiled->size,
-            compiled->size * sizeof(uint32_t));
-    printf("IR operations: %zu\n",
-            ir_program->count);
-
+        printf("Compiled successfully. Output written to %s\n", output_file);
+        printf("Code size: %zu instructions (%zu bytes)\n", compiled->size,
+                compiled->size * sizeof(uint32_t));
+        printf("IR operations: %zu\n", ir_program->count);
+    }
+    
+    free_code_buffer(compiled);
     free(program);
     free(processed_program);
     free_tkarr(tokens);
     free_ir_program(ir_program);
-    free_code_buffer(compiled);
     return 0;
 }
