@@ -288,69 +288,124 @@ MultiplyLoopAnalysis analyze_multiply_loop(IROperation* loopstart)
     return analysis;
 }
 
-
 void optimize_add_mul_loops(IRProgram* program) 
 {
+    if (!program || !program->first)
+        return;
+        
     IROperation* op = program->first;
     
     while (op && op->next) 
     {
+        /* check if this is a loop start */
         if (op->type == IR_LOOP_START) 
         {
+            int loop_id = op->loop_id; /* save the loop ID */
             MultiplyLoopAnalysis analysis = analyze_multiply_loop(op);
+            
             if (analysis.is_direct_multiply) 
             {
-                /* find the loop end */
+                /* find the loop end with matching loop_id */
                 IROperation* loop_end = op->next;
-                while (loop_end && loop_end->type != IR_LOOP_END)
+                int nesting = 1; /* track nesting level to handle nested loops */
+                while (loop_end && nesting > 0) 
+                {
+                    if (loop_end->type == IR_LOOP_START) 
+                    {
+                        nesting++;
+                    } 
+                    else if (loop_end->type == IR_LOOP_END) 
+                    {
+                        nesting--;
+                        if (nesting == 0 && loop_end->loop_id == loop_id) 
+                        {
+                            break; /* found the matching loop end */
+                        }
+                    }
                     loop_end = loop_end->next;
-
+                }
+                
                 if (!loop_end) 
                 {
                     op = op->next;
-                    continue;
+                    continue; /* couldn't find matching loop end */
                 }
-
-                /* save next after the loop */
+                
+                /* save what comes after the loop */
                 IROperation* after_loop = loop_end->next;
                 
-                /* create replacement operations */
-                IROperation* add_mul_op = create_ir_op(
-                    IR_ADD_MUL, 
-                    analysis.value_multiply, 
-                    analysis.ptr_offset, 
-                    -1
-                );
-                IROperation* set_zero_op = create_ir_op(IR_SET_ZERO, 0, 0, -1);
+                /* create new IR operations to replace the loop */
+                IROperation* add_mul = create_ir_op(IR_ADD_MUL, 
+                                                   analysis.value_multiply, 
+                                                   analysis.ptr_offset, 
+                                                   -1);
+                                                   
+                IROperation* set_zero = create_ir_op(IR_SET_ZERO, 
+                                                    0, 
+                                                    0, 
+                                                    -1);
                 
-                /* save all nodes to be freed */
-                IROperation* first_to_free = op->next;
+                /* link them together */
+                add_mul->next = set_zero;
+                set_zero->next = after_loop;
                 
-                /* connect the new nodes */
-                set_zero_op->next = after_loop;
-                add_mul_op->next = set_zero_op;
-                op->next = add_mul_op;
-                
-                /* free everything between loop start and end */
-                IROperation* current = first_to_free;
-                while (current != after_loop) {
+                /* delete all operations between op and after_loop */
+                IROperation* current = op->next;
+                while (current != after_loop) 
+                {
                     IROperation* to_free = current;
                     current = current->next;
                     free(to_free);
+                    program->count--;
+                }
+                
+                /* free the loop start operation and replace it with add_mul */
+                add_mul->next = set_zero;
+                
+                /* update the previous operation to point to our new add_mul */
+                if (op == program->first) 
+                {
+                    program->first = add_mul;
+                } 
+                else 
+                {
+                    IROperation* prev = program->first;
+                    while (prev && prev->next != op) 
+                    {
+                        prev = prev->next;
+                    }
+                    
+                    if (prev) 
+                    {
+                        prev->next = add_mul;
+                    }
                 }
                 
                 /* update the last pointer if needed */
-                if (loop_end == program->last)
-                    program->last = set_zero_op;
+                if (loop_end == program->last) 
+                {
+                    program->last = set_zero;
+                }
                 
-                /* adjust count and skip over the newly added operations */
+                /* free the original loop start */
+                free(op);
+                program->count--; /* one less for the freed loop start */
+                
+                /* account for the two new operations */
                 program->count += 2;
-                op = set_zero_op;
-                continue;
+                
+                /* continue from the new set_zero operation */
+                op = set_zero;
+            } 
+            else 
+            {
+                op = op->next;
             }
+        } 
+        else 
+        {
+            op = op->next;
         }
-        
-        op = op->next;
     }
 }
 
@@ -363,14 +418,11 @@ IRProgram* optimize1(IRProgram* program)
     optimize_combinable(program);
     optimize_clear_loops(program);
 
-    /* advanced */
+    /* advance; maybe moved to -O3 or optimize2() */
     optimize_move_loops(program);
-
-    // optimize_add_mul_loops(program);
+    optimize_add_mul_loops(program);
     optimize_scan_loops(program);
     
     optimize_combinable(program); /* final pass */
-
-    ir_dump(program);
     return program;
 }
