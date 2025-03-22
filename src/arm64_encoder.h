@@ -30,3 +30,13 @@ uint32_t encode_movk(int rd, uint16_t imm, int shift); /* imm 16-bit mov to regi
 uint32_t encode_ret(); /* return from subroutine */
 
 uint32_t encode_stur(int rt, int rn, int offset); /* stor register (unscaled offset) */
+
+uint32_t encode_ldur(int rt, int rn, int offset);
+
+uint32_t encode_stp(int rt, int rt2, int rn, int imm);
+
+uint32_t encode_ldp(int rt, int rt2, int rn, int imm);
+
+uint32_t encode_stp_pre(int rt, int rt2, int rn, int imm); /* pre-indexed */
+
+uint32_t encode_ldp_post(int rt, int rt2, int rn, int imm); /* post-indexed */

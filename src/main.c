@@ -1,7 +1,8 @@
-#include "bfc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "bfc.h"
+#include "bfrt.h"
 
 char *read_source_file(const char *filename) 
 {
@@ -141,7 +142,8 @@ int main(int argc, char *argv[])
     }
 
     TokenArray *tokens = tokenize(processed_program);
-    if (!tokens) {
+    if (!tokens) 
+    {
         fprintf(stderr, "Tokenization failed\n");
         free(program);
         free(processed_program);
@@ -214,9 +216,12 @@ int main(int argc, char *argv[])
         if (verbose)
             printf("Using JIT runtime execution\n");
         
-        /* jit_execute_compiled(compiled); */
-        printf("JIT runtime execution not yet implemented\n");
-    } 
+        int result = jit_exec(compiled);
+        if (result != 0) 
+            fprintf(stderr, "JIT execution failed with code: %d\n", result);
+        else if (verbose)
+            printf("JIT execution completed successfully\n");
+    }
     else /* standard AOT output */
     {
         write_binary_file(output_file, compiled);

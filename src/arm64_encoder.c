@@ -131,3 +131,76 @@ uint32_t encode_stur(int rt, int rn, int offset)
             (rn << 5) |                /* base register */
             rt;                        /* target register */
 }
+
+uint32_t encode_ldur(int rt, int rn, int offset) 
+{
+    return (0x3u << 30) |             /* size=64-bit */
+            (0x7u << 27) |             /* Load/Store opcode */
+            (0x1u << 22) |             /* Load (not store) */
+            ((offset & 0x1FF) << 12) | /* 9-bit immediate offset */
+            (0x2u << 10) |             /* unscaled variant */
+            (rn << 5) |                /* base register */
+            rt;                        /* target register */
+}
+
+uint32_t encode_stp(int rt, int rt2, int rn, int imm) 
+{
+    int opc = 2; /* for 64-bit regs */
+    
+    /* conv byte offset to register pair aligned offset (divide by 8) */
+    int imm7 = (imm / 8) & 0x7F;
+    
+    return (opc << 30) |        /* opc=2 for 64-bit */
+           (0xA4 << 22) |       /* fixed pattern */
+           ((imm7 & 0x7F) << 15) | /* 7-bit immediate */
+           (rt2 << 10) |        /* second register */
+           (rn << 5) |          /* base register */
+           rt;                  /* first register */
+}
+
+uint32_t encode_ldp(int rt, int rt2, int rn, int imm) 
+{
+    int opc = 2;
+    int imm7 = (imm / 8) & 0x7F;
+    
+    return (opc << 30) |        /* opc=2 for 64-bit */
+           (0xA5 << 22) |       /* fixed pattern */
+           ((imm7 & 0x7F) << 15) | /* 7-bit immediate */
+           (rt2 << 10) |        /* second register */
+           (rn << 5) |          /* base register */
+           rt;                  /* first register */
+}
+
+uint32_t encode_stp_pre(int rt, int rt2, int rn, int imm) 
+{
+    int opc = 2;
+    int op2 = 3;
+    int L = 0;
+    int imm7 = (imm / 8) & 0x7F;
+
+    return (opc << 30) |        /* opc=2 for 64-bit */
+           (0xA << 24) |        /* fixed pattern */
+           (op2 << 22) |        /* op2=3 for pre-indexed */
+           (L << 21) |          /* L=0 for store */
+           ((imm7 & 0x7F) << 15) | /* 7-bit immediate */
+           (rt2 << 10) |        /* second register */
+           (rn << 5) |          /* base register */
+           rt;                  /* first register */
+}
+
+uint32_t encode_ldp_post(int rt, int rt2, int rn, int imm) 
+{
+    int opc = 2;
+    int op2 = 1;
+    int L = 1;
+    int imm7 = (imm / 8) & 0x7F;
+    
+    return (opc << 30) |        /* opc=2 for 64-bit */
+           (0xA << 24) |        /* fixed pattern */
+           (op2 << 22) |        /* op2=1 for post-indexed */
+           (L << 21) |          /* L=1 for load */
+           ((imm7 & 0x7F) << 15) | /* 7-bit immediate */
+           (rt2 << 10) |        /* second register */
+           (rn << 5) |          /* base register */
+           rt;                  /* first register */
+}

@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -Wall -Wextra -O0 -g -fsanitize=address -fno-omit-frame-pointer
+CFLAGS = -Wall -Wextra -O2 # -O0 -g -fsanitize=address -fno-omit-frame-pointer
 TARGET = bfc
 SRCDIR = src
 OBJDIR = obj
