@@ -7,7 +7,7 @@
 
 #define REG_TAPE_PTR 0 /* X0 = ptr to current cell */
 #define REG_TEMP 1     /* X1 = temp register for operations */
-#define REG_SYSCALL 8  /* X8 = syscall number */
+#define REG_SYSCALL 16  /* X8 = syscall number */
 #define REG_STDOUT 1   /* X0 = stdout file descriptor */
 #define REG_BUF_PTR 1  /* X1 = buffer pointer for I/O */
 #define REG_BUF_SIZE 2 /* X2 = buffer size for I/O */
@@ -98,18 +98,18 @@ void emit_io_op(CodeBuffer* buf, int is_output)
 
     if (is_output)  /* stdout */
     {
-        emit_instr(buf, encode_mov_imm(REG_SYSCALL, 64));
+        emit_instr(buf, encode_mov_imm(REG_SYSCALL, 4)); /* macOS write syscall */
         emit_instr(buf, encode_mov_imm(0, 1));
     }
     else /* stdin */
     {
-        emit_instr(buf, encode_mov_imm(REG_SYSCALL, 63));
+        emit_instr(buf, encode_mov_imm(REG_SYSCALL, 3)); /* macOS read syscall */
         emit_instr(buf, encode_mov_imm(0, 0));
     }
 
     emit_instr(buf, encode_mov_reg(REG_BUF_PTR, 9)); /* X1 = buffer address (current byte pointer) */
     emit_instr(buf, encode_mov_imm(REG_BUF_SIZE, 1)); /* X2 = length (1) */
-    emit_instr(buf, encode_svc(0)); /* make syscall */
+    emit_instr(buf, encode_svc(0x80)); /* make syscall with macOS SVC #0x80 convention */
     emit_instr(buf, encode_mov_reg(REG_TAPE_PTR, 9)); /* restore X0 from X9 */
 }
 
@@ -342,8 +342,9 @@ CodeBuffer* codegen(IRProgram* program)
         op = op->next;
     }
     
-    /* add return instruction */
-    emit_instr(buf, encode_ret());
+    /** runtime epilogue */
+    emit_instr(buf, encode_mov_imm(0, 0)); /* need to return 0 otherwise we getting ugly return value :( */
+    emit_instr(buf, encode_ret()); /* ret */
     
     /* clean up */
     free(loop_start_offsets);

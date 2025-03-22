@@ -10,9 +10,10 @@
 
 typedef struct
 {
-    void* jit_region;
-    size_t region_size;
-    void* tape_memory;
+    void* jit_region;      /* executable memory for code */
+    size_t code_size;      /* size of compiled code */
+    void* tape_memory;     /* memory for BF tape */
+    size_t tape_size;      /* size of BF tape memory */
 } JITContext;
 
 typedef struct JitWriteData
@@ -32,6 +33,7 @@ static int jit_writing_callback(void* context)
     return 0;
 }
 
+/* Tell macOS that we want to use our custom writing callback */
 PTHREAD_JIT_WRITE_ALLOW_CALLBACKS_NP(jit_writing_callback);
 
 JITContext* init_jit(CodeBuffer *compiled)
@@ -49,44 +51,57 @@ JITContext* init_jit(CodeBuffer *compiled)
         return NULL;
     }
 
-    /* calculate total memory needed:
-     * 1. code region (page-aligned)
-     * 2. Brainfuck tape memory (30,000 bytes) */
+    /* calculate size needed for code, page-aligned */
     size_t code_size = compiled->size * sizeof(uint32_t);
-    size_t page_size = 4096; // Standard page size
-    size_t code_region_size = ((code_size + page_size - 1) / page_size) * page_size;
-    size_t total_size = code_region_size + BF_TAPE_SIZE;
+    size_t page_size = 4096; /* Standard page size */
+    size_t aligned_code_size = ((code_size + page_size - 1) / page_size) * page_size;
     
-    /* alloc executable memory with MAP_JIT flag for macOS */
-    void *jit_region = mmap(NULL, total_size,  
+    /* allocate executable memory for code only */
+    void *code_region = mmap(NULL, aligned_code_size,  
                            PROT_READ | PROT_WRITE | PROT_EXEC,
                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_JIT, -1, 0);
     
-    if (jit_region == MAP_FAILED) 
+    if (code_region == MAP_FAILED) 
     {
-        perror("JIT memory allocation failed");
+        perror("JIT code memory allocation failed");
         free(ctx);
         return NULL;
     }
     
-    ctx->jit_region = jit_region;
-    ctx->region_size = total_size;
-    ctx->tape_memory = (char*)jit_region + code_region_size;
+    /* allocate separate memory for BF tape (non-executable) */
+    void *tape_memory = mmap(NULL, BF_TAPE_SIZE,
+                            PROT_READ | PROT_WRITE,
+                            MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                            
+    if (tape_memory == MAP_FAILED) 
+    {
+        perror("BF tape memory allocation failed");
+        munmap(code_region, aligned_code_size);
+        free(ctx);
+        return NULL;
+    }
     
-    /* IMPORTANT: we set the memory area to execute to ZERO to prevent malicious program to run */
+    ctx->jit_region = code_region;
+    ctx->code_size = aligned_code_size;
+    ctx->tape_memory = tape_memory;
+    ctx->tape_size = BF_TAPE_SIZE;
+    
+    /* Zero out the tape memory */
     memset(ctx->tape_memory, 0, BF_TAPE_SIZE);
+    
+    /* Use pthread's secure writing mechanism to write to executable memory */
     JitWriteData write_data = {
         .dest = ctx->jit_region,
         .src = compiled->code,
         .size = code_size
     };
     
-    /* use pthread JIT writing callback to securely write to executable memory */
     int result = pthread_jit_write_with_callback_np(jit_writing_callback, &write_data);
     if (result != 0) 
     {
         perror("JIT code writing failed");
-        munmap(jit_region, total_size);
+        munmap(tape_memory, BF_TAPE_SIZE);
+        munmap(code_region, aligned_code_size);
         free(ctx);
         return NULL;
     }
@@ -115,8 +130,14 @@ void free_jit(JITContext *ctx)
 {
     if (ctx) 
     {
+        /* Free code memory */
         if (ctx->jit_region != MAP_FAILED && ctx->jit_region != NULL)
-            munmap(ctx->jit_region, ctx->region_size);
+            munmap(ctx->jit_region, ctx->code_size);
+            
+        /* Free tape memory */
+        if (ctx->tape_memory != MAP_FAILED && ctx->tape_memory != NULL)
+            munmap(ctx->tape_memory, ctx->tape_size);
+            
         free(ctx);
     }
 }
